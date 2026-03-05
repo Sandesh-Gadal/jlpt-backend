@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Learner\CourseController;
+use App\Http\Controllers\Learner\LessonController;
 
 // ── Public routes (no auth required) ──────────────────────
 Route::prefix('v1')->group(function () {
@@ -29,6 +31,16 @@ Route::prefix('v1')->group(function () {
             
         });
 
+        // ── Learner routes ─────────────────────────────────────
+        Route::prefix('courses')->group(function () {
+            Route::get('/',          [CourseController::class, 'index']);
+            Route::get('/{id}',      [CourseController::class, 'show']);
+        });
+
+        Route::prefix('lessons')->group(function () {
+            Route::get('/{id}',          [LessonController::class, 'show']);
+            Route::post('/{id}/complete',[LessonController::class, 'complete']);
+        });        
     });
 
 });
