@@ -10,6 +10,8 @@ class PlanSeeder extends Seeder
 {
     public function run(): void
     {
+            DB::table('plans')->truncate();
+
         $plans = [
             [
                 'id'              => Str::uuid(),

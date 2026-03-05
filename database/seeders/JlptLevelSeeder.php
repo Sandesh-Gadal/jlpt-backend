@@ -10,6 +10,8 @@ class JlptLevelSeeder extends Seeder
 {
     public function run(): void
     {
+            DB::table('jlpt_levels')->truncate();
+
         $levels = [
             [
                 'id'         => Str::uuid(),
