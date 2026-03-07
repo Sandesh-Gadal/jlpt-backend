@@ -34,7 +34,7 @@ class VerifyEmailNotification extends Notification
 
     protected function verificationUrl(object $notifiable): string
     {
-        $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000'));
+        // $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000'));
 
         $apiUrl = URL::temporarySignedRoute(
             'verification.verify',
@@ -44,8 +44,8 @@ class VerifyEmailNotification extends Notification
                 'hash' => sha1($notifiable->email),
             ]
         );
-
+        return $apiUrl;
         // Point to frontend which will call the API
-        return $frontendUrl . '/verify-email?link=' . urlencode($apiUrl);
+        // return $frontendUrl . '/verify-email?link=' . urlencode($apiUrl);
     }
 }

@@ -6,6 +6,9 @@ use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Learner\CourseController;
 use App\Http\Controllers\Learner\LessonController;
+use App\Http\Controllers\FlashcardController;
+use App\Http\Controllers\TestController;
+use App\Http\Controllers\DashboardController;
 
 // ── Public routes (no auth required) ──────────────────────
 Route::prefix('v1')->group(function () {
@@ -17,6 +20,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/forgot-password',  [PasswordResetController::class, 'forgot']);
         Route::post('/reset-password',   [PasswordResetController::class, 'reset']);
         Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->middleware('signed')
             ->name('verification.verify');
     });
 
@@ -40,7 +44,37 @@ Route::prefix('v1')->group(function () {
         Route::prefix('lessons')->group(function () {
             Route::get('/{id}',          [LessonController::class, 'show']);
             Route::post('/{id}/complete',[LessonController::class, 'complete']);
-        });        
+        });
+
+
+        // ── Gated routes — require specific plan ───────────────
+        Route::middleware('feature:mock_exams')->group(function () {
+            // mock exam routes go here in Phase 2
+        });
+
+        Route::middleware('feature:assign_tests')->group(function () {
+            // institution assign test routes go here in Phase 4
+        });
+
+        Route::middleware('feature:bulk_export')->group(function () {
+            // institution bulk export routes go here in Phase 4
+        });
+
+
+        // Flashcards
+Route::get('/flashcards',             [FlashcardController::class, 'index']);
+Route::get('/flashcards/due',         [FlashcardController::class, 'due']);
+Route::post('/flashcards/{id}/rate',  [FlashcardController::class, 'rate']);
+
+// Tests
+Route::get('/tests',                                   [TestController::class, 'index']);
+Route::post('/tests/{testSetId}/start',                [TestController::class, 'start']);
+Route::post('/tests/attempts/{attemptId}/answer',      [TestController::class, 'answer']);
+Route::post('/tests/attempts/{attemptId}/submit',      [TestController::class, 'submit']);
+Route::get('/tests/attempts/{attemptId}/results',      [TestController::class, 'results']);
+
+// Dashboard (real data)
+Route::get('/dashboard',  [DashboardController::class, 'index']);
     });
 
 });

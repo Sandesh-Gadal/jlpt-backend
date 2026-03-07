@@ -10,55 +10,87 @@ class ContentAccessRuleSeeder extends Seeder
 {
     public function run(): void
     {
-    DB::table('content_access_rules')->truncate();
-        $courses = DB::table('courses')->get();
-        $rules   = [];
+        DB::table('content_access_rules')->truncate();
 
-        foreach ($courses as $course) {
-            // N5 courses — free users get first 5 lessons only
+        $rules = [];
+
+        // ── COURSE RULES ───────────────────────────────────
+        $n5Courses = DB::table('courses')
+            ->whereIn('jlpt_level_id', [
+                DB::table('jlpt_levels')->where('code', 'N5')->value('id')
+            ])->get();
+
+        $n4Courses = DB::table('courses')
+            ->whereIn('jlpt_level_id', [
+                DB::table('jlpt_levels')->where('code', 'N4')->value('id')
+            ])->get();
+
+        // N5 courses — free plan, preview 2 lessons
+        foreach ($n5Courses as $course) {
             $rules[] = [
-                'id'                  => Str::uuid(),
-                'content_type'        => 'course',
-                'content_id'          => $course->id,
-                'min_plan_type'       => 'free',
-                'preview_allowed'     => true,
-                'preview_lesson_count'=> 5,
-                'created_at'          => now(),
-                'updated_at'          => now(),
+                'id'                   => Str::uuid(),
+                'content_type'         => 'course',
+                'content_id'           => $course->id,
+                'min_plan_type'        => 'free',
+                'preview_allowed'      => true,
+                'preview_lesson_count' => 2,
+                'created_at'           => now(),
+                'updated_at'           => now(),
             ];
         }
 
-        // Individual lessons — first 3 free, rest need pro
-        $lessons = DB::table('lessons')->get();
-        foreach ($lessons as $index => $lesson) {
+        // N4 courses — individual plan required, no preview
+        foreach ($n4Courses as $course) {
             $rules[] = [
-                'id'                  => Str::uuid(),
-                'content_type'        => 'lesson',
-                'content_id'          => $lesson->id,
-                'min_plan_type'       => $index < 3 ? 'free' : 'individual',
-                'preview_allowed'     => $index < 3,
-                'preview_lesson_count'=> null,
-                'created_at'          => now(),
-                'updated_at'          => now(),
+                'id'                   => Str::uuid(),
+                'content_type'         => 'course',
+                'content_id'           => $course->id,
+                'min_plan_type'        => 'individual',
+                'preview_allowed'      => false,
+                'preview_lesson_count' => 0,
+                'created_at'           => now(),
+                'updated_at'           => now(),
             ];
         }
 
-        // Question banks — free gets vocabulary only
-        $banks = DB::table('question_banks')->get();
-        foreach ($banks as $bank) {
-            $rules[] = [
-                'id'                  => Str::uuid(),
-                'content_type'        => 'question_bank',
-                'content_id'          => $bank->id,
-                'min_plan_type'       => $bank->section_type === 'vocabulary' ? 'free' : 'individual',
-                'preview_allowed'     => $bank->section_type === 'vocabulary',
-                'preview_lesson_count'=> null,
-                'created_at'          => now(),
-                'updated_at'          => now(),
-            ];
+        // ── LESSON RULES ───────────────────────────────────
+        $allLessons = DB::table('lessons')
+            ->join('courses', 'lessons.course_id', '=', 'courses.id')
+            ->join('jlpt_levels', 'courses.jlpt_level_id', '=', 'jlpt_levels.id')
+            ->orderBy('lessons.sort_order')
+            ->select('lessons.id', 'lessons.sort_order', 'jlpt_levels.code as level_code')
+            ->get();
+
+        foreach ($allLessons as $lesson) {
+            if ($lesson->level_code === 'N5') {
+                // N5 — first 2 lessons free, rest need individual
+                $isFree = $lesson->sort_order <= 2;
+                $rules[] = [
+                    'id'                   => Str::uuid(),
+                    'content_type'         => 'lesson',
+                    'content_id'           => $lesson->id,
+                    'min_plan_type'        => $isFree ? 'free' : 'individual',
+                    'preview_allowed'      => $isFree,
+                    'preview_lesson_count' => null,
+                    'created_at'           => now(),
+                    'updated_at'           => now(),
+                ];
+            } else {
+                // N4+ — all lessons need individual plan
+                $rules[] = [
+                    'id'                   => Str::uuid(),
+                    'content_type'         => 'lesson',
+                    'content_id'           => $lesson->id,
+                    'min_plan_type'        => 'individual',
+                    'preview_allowed'      => false,
+                    'preview_lesson_count' => null,
+                    'created_at'           => now(),
+                    'updated_at'           => now(),
+                ];
+            }
         }
 
         DB::table('content_access_rules')->insert($rules);
-        $this->command->info('✅ Content access rules seeded — ' . count($rules) . ' rules created.');
+        $this->command->info('✅ Access rules seeded — ' . count($rules) . ' rules created.');
     }
 }

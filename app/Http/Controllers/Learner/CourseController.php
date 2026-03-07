@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Learner;
 use App\Http\Controllers\Controller;
 use App\Models\ContentAccessRule;
 use App\Models\Course;
+use App\Models\LessonCompletion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,36 +22,49 @@ class CourseController extends Controller
             ->orderBy('sort_order')
             ->get();
 
-        $data = $courses->map(function ($course) use ($planType) {
-            $rule = ContentAccessRule::where('content_type', 'course')
+        $data = $courses->map(function ($course) use ($planType, $user) {
+
+            $rule      = ContentAccessRule::where('content_type', 'course')
                 ->where('content_id', $course->id)
                 ->first();
 
             $hasAccess    = !$rule || $rule->isAccessibleBy($planType);
             $lessonCount  = $course->publishedLessons->count();
+            $previewCount = $rule?->preview_lesson_count ?? 0;
+
+            // Count completed lessons for this user
+            $completedCount = LessonCompletion::where('user_id', $user->id)
+                ->whereIn('lesson_id', $course->publishedLessons->pluck('id'))
+                ->count();
 
             return [
-                'id'                => $course->id,
-                'title'             => $course->title,
-                'description'       => $course->description,
-                'category'          => $course->category,
-                'thumbnail_url'     => $course->thumbnail_url,
-                'estimated_minutes' => $course->estimated_minutes,
-                'lesson_count'      => $lessonCount,
-                'jlpt_level'        => [
+                'id'                  => $course->id,
+                'title'               => $course->title,
+                'description'         => $course->description,
+                'category'            => $course->category,
+                'thumbnail_url'       => $course->thumbnail_url,
+                'estimated_minutes'   => $course->estimated_minutes,
+                'lesson_count'        => $lessonCount,
+                'completed_lessons'   => $completedCount,
+                'progress_percent'    => $lessonCount > 0
+                    ? round(($completedCount / $lessonCount) * 100)
+                    : 0,
+                'jlpt_level'          => [
                     'code'    => $course->jlptLevel->code,
                     'name_en' => $course->jlptLevel->name_en,
                 ],
-                'has_access'        => $hasAccess,
-                'preview_lessons'   => $rule?->preview_lesson_count ?? 0,
-                'locked'            => !$hasAccess,
-                'upgrade_required'  => !$hasAccess ? 'individual' : null,
+                // ── Lock info ──────────────────────────────
+                'is_locked'           => !$hasAccess,
+                'preview_lessons'     => $hasAccess ? null : $previewCount,
+                'required_plan'       => $hasAccess ? null : $rule?->min_plan_type,
+                'upgrade_prompt'      => $hasAccess ? null : 'upgrade_to_' . $rule?->min_plan_type,
             ];
         });
 
         return response()->json([
-            'courses' => $data,
-            'total'   => $data->count(),
+            'courses'      => $data,
+            'total'        => $data->count(),
+            'your_plan'    => $planType,
         ]);
     }
 
@@ -64,29 +78,36 @@ class CourseController extends Controller
             ->where('is_published', true)
             ->findOrFail($id);
 
-        // Check course access
-        $rule      = ContentAccessRule::where('content_type', 'course')
+        // Course level access check
+        $courseRule = ContentAccessRule::where('content_type', 'course')
             ->where('content_id', $course->id)
             ->first();
-        $hasAccess = !$rule || $rule->isAccessibleBy($planType);
 
-        // Build lesson list with access flags
-        $lessons = $course->publishedLessons->map(function ($lesson, $index) use ($planType, $rule, $hasAccess) {
+        $courseAccess = !$courseRule || $courseRule->isAccessibleBy($planType);
+        $previewCount = $courseRule?->preview_lesson_count ?? 0;
 
-            // Check individual lesson access rule
-            $lessonRule = ContentAccessRule::where('content_type', 'lesson')
+        // Build lessons with individual lock status
+        $lessons = $course->publishedLessons->map(function ($lesson, $index) use (
+            $planType, $courseAccess, $previewCount, $user
+        ) {
+            // Check individual lesson rule
+            $lessonRule   = ContentAccessRule::where('content_type', 'lesson')
                 ->where('content_id', $lesson->id)
                 ->first();
 
             $lessonAccess = $lessonRule
                 ? $lessonRule->isAccessibleBy($planType)
-                : $hasAccess;
+                : $courseAccess;
 
-            // Preview: free users can see first N lessons
-            $previewCount = $rule?->preview_lesson_count ?? 0;
-            if (!$lessonAccess && $rule?->preview_allowed && $index < $previewCount) {
+            // Preview override — free users unlock first N lessons
+            if (!$lessonAccess && $index < $previewCount) {
                 $lessonAccess = true;
             }
+
+            // Check if completed
+            $completed = LessonCompletion::where('user_id', $user->id)
+                ->where('lesson_id', $lesson->id)
+                ->exists();
 
             return [
                 'id'                => $lesson->id,
@@ -95,7 +116,15 @@ class CourseController extends Controller
                 'estimated_minutes' => $lesson->estimated_minutes,
                 'xp_reward'         => $lesson->xp_reward,
                 'sort_order'        => $lesson->sort_order,
+                // ── Lock info ──────────────────────────────
                 'is_locked'         => !$lessonAccess,
+                'is_completed'      => $completed,
+                'required_plan'     => !$lessonAccess
+                    ? ($lessonRule?->min_plan_type ?? 'individual')
+                    : null,
+                'upgrade_prompt'    => !$lessonAccess
+                    ? 'upgrade_to_' . ($lessonRule?->min_plan_type ?? 'individual')
+                    : null,
             ];
         });
 
@@ -111,10 +140,14 @@ class CourseController extends Controller
                     'code'    => $course->jlptLevel->code,
                     'name_en' => $course->jlptLevel->name_en,
                 ],
-                'has_access'        => $hasAccess,
+                'is_locked'         => !$courseAccess,
+                'required_plan'     => !$courseAccess ? $courseRule?->min_plan_type : null,
             ],
-            'lessons' => $lessons,
+            'lessons'       => $lessons,
             'total_lessons' => $lessons->count(),
+            'free_lessons'  => $lessons->where('is_locked', false)->count(),
+            'locked_lessons'=> $lessons->where('is_locked', true)->count(),
+            'your_plan'     => $planType,
         ]);
     }
 }

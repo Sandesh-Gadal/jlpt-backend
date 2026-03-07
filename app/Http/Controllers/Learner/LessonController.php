@@ -12,53 +12,54 @@ use Illuminate\Http\Request;
 class LessonController extends Controller
 {
     // ── GET /api/v1/lessons/{id} ───────────────────────────
-    public function show(Request $request, string $id): JsonResponse
-    {
-        $user     = $request->user();
-        $planType = $user->tenant->plan->plan_type ?? 'free';
+public function show(Request $request, string $id): JsonResponse
+{
+    $user     = $request->user();
+    $planType = $user->tenant->plan->plan_type ?? 'free';
 
-        $lesson = Lesson::with('course.jlptLevel')
-            ->where('is_published', true)
-            ->findOrFail($id);
+    $lesson = Lesson::with('course.jlptLevel')
+        ->where('is_published', true)
+        ->findOrFail($id);
 
-        // Check access
-        $rule      = ContentAccessRule::where('content_type', 'lesson')
-            ->where('content_id', $lesson->id)
-            ->first();
-        $hasAccess = !$rule || $rule->isAccessibleBy($planType);
+    // Check access using FeatureGateService
+    $rule      = ContentAccessRule::where('content_type', 'lesson')
+        ->where('content_id', $lesson->id)
+        ->first();
+    $hasAccess = !$rule || $rule->isAccessibleBy($planType);
 
-        if (!$hasAccess) {
-            return response()->json([
-                'message'          => 'This lesson requires an upgrade.',
-                'upgrade_required' => 'individual',
-                'upgrade_prompt'   => 'unlock_lesson',
-            ], 403);
-        }
-
-        // Check if already completed
-        $completed = LessonCompletion::where('user_id', $user->id)
-            ->where('lesson_id', $lesson->id)
-            ->exists();
-
+    if (!$hasAccess) {
         return response()->json([
-            'lesson' => [
-                'id'                => $lesson->id,
-                'title'             => $lesson->title,
-                'lesson_type'       => $lesson->lesson_type,
-                'content'           => $lesson->content_json,
-                'estimated_minutes' => $lesson->estimated_minutes,
-                'xp_reward'         => $lesson->xp_reward,
-                'video_url'         => $lesson->video_url,
-                'audio_url'         => $lesson->audio_url,
-                'course'            => [
-                    'id'    => $lesson->course->id,
-                    'title' => $lesson->course->title,
-                    'level' => $lesson->course->jlptLevel->code,
-                ],
-                'already_completed' => $completed,
-            ],
-        ]);
+            'message'          => 'This lesson requires an upgrade.',
+            'feature_key'      => 'lesson_access',
+            'your_plan'        => $planType,
+            'required_plan'    => $rule->min_plan_type,
+            'upgrade_prompt'   => 'upgrade_to_' . $rule->min_plan_type,
+        ], 403);
     }
+
+    $completed = LessonCompletion::where('user_id', $user->id)
+        ->where('lesson_id', $lesson->id)
+        ->exists();
+
+    return response()->json([
+        'lesson' => [
+            'id'                => $lesson->id,
+            'title'             => $lesson->title,
+            'lesson_type'       => $lesson->lesson_type,
+            'content'           => $lesson->content_json,
+            'estimated_minutes' => $lesson->estimated_minutes,
+            'xp_reward'         => $lesson->xp_reward,
+            'video_url'         => $lesson->video_url,
+            'audio_url'         => $lesson->audio_url,
+            'course'            => [
+                'id'    => $lesson->course->id,
+                'title' => $lesson->course->title,
+                'level' => $lesson->course->jlptLevel->code,
+            ],
+            'already_completed' => $completed,
+        ],
+    ]);
+}
 
     // ── POST /api/v1/lessons/{id}/complete ─────────────────
     public function complete(Request $request, string $id): JsonResponse
