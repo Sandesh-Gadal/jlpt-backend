@@ -24,6 +24,12 @@ Route::prefix('v1')->group(function () {
             ->name('verification.verify');
     });
 
+    // Courses - public (no auth required for catalog)
+    Route::prefix('courses')->group(function () {
+        Route::get('/',          [CourseController::class, 'index']);
+        Route::get('/{id}',      [CourseController::class, 'show']);
+    });
+
     // ── Protected routes (Sanctum token required) ─────────
     Route::middleware('auth:sanctum')->group(function () {
 
@@ -36,11 +42,6 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── Learner routes ─────────────────────────────────────
-        Route::prefix('courses')->group(function () {
-            Route::get('/',          [CourseController::class, 'index']);
-            Route::get('/{id}',      [CourseController::class, 'show']);
-        });
-
         Route::prefix('lessons')->group(function () {
             Route::get('/{id}',          [LessonController::class, 'show']);
             Route::post('/{id}/complete',[LessonController::class, 'complete']);

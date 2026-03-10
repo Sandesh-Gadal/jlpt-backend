@@ -63,6 +63,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Tenant::class);
     }
 
+    public function streak()
+    {
+        return $this->hasOne(Streak::class);
+    }
+
     // Use our custom verification email
     public function sendEmailVerificationNotification(): void
     {

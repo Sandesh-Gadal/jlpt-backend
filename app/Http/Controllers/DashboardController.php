@@ -67,12 +67,20 @@ class DashboardController extends Controller
             ->take(3)
             ->get();
 
+        // Lessons due today (in-progress courses that have incomplete lessons)
+        $lessonsDueToday = $inProgress->sum(fn($course) => $course->total_lessons - $course->completed_lessons);
+
         return response()->json([
-            'xp'             => $xpStats,
-            'sparkline'      => $sparkline,
-            'in_progress'    => $inProgress,
-            'flashcards_due' => $flashcardsDue,
-            'recent_tests'   => $recentTests,
+            'user'              => [
+                'full_name'         => $user->full_name,
+                'jlpt_target_level' => $user->jlpt_target_level,
+            ],
+            'xp'                => $xpStats,
+            'sparkline'         => $sparkline,
+            'in_progress'       => $inProgress,
+            'flashcards_due'    => $flashcardsDue,
+            'recent_tests'      => $recentTests,
+            'lessons_due_today' => $lessonsDueToday,
         ]);
     }
 }

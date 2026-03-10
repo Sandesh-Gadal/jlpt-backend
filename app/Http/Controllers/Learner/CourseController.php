@@ -14,15 +14,17 @@ class CourseController extends Controller
     // ── GET /api/v1/courses ────────────────────────────────
     public function index(Request $request): JsonResponse
     {
-        $user     = $request->user();
-        $planType = $user->tenant->plan->plan_type ?? 'free';
+        // Handle both authenticated and unauthenticated users
+        $user = $request->user();
+        $planType = $user?->tenant?->plan?->plan_type ?? 'free';
+        $userId = $user?->id;
 
         $courses = Course::with(['jlptLevel', 'publishedLessons'])
             ->where('is_published', true)
             ->orderBy('sort_order')
             ->get();
 
-        $data = $courses->map(function ($course) use ($planType, $user) {
+        $data = $courses->map(function ($course) use ($planType, $userId) {
 
             $rule      = ContentAccessRule::where('content_type', 'course')
                 ->where('content_id', $course->id)
@@ -32,10 +34,13 @@ class CourseController extends Controller
             $lessonCount  = $course->publishedLessons->count();
             $previewCount = $rule?->preview_lesson_count ?? 0;
 
-            // Count completed lessons for this user
-            $completedCount = LessonCompletion::where('user_id', $user->id)
-                ->whereIn('lesson_id', $course->publishedLessons->pluck('id'))
-                ->count();
+            // Only count completed lessons if user is authenticated
+            $completedCount = 0;
+            if ($userId) {
+                $completedCount = LessonCompletion::where('user_id', $userId)
+                    ->whereIn('lesson_id', $course->publishedLessons->pluck('id'))
+                    ->count();
+            }
 
             return [
                 'id'                  => $course->id,
@@ -71,12 +76,29 @@ class CourseController extends Controller
     // ── GET /api/v1/courses/{id} ───────────────────────────
     public function show(Request $request, string $id): JsonResponse
     {
-        $user     = $request->user();
-        $planType = $user->tenant->plan->plan_type ?? 'free';
+        // Handle both authenticated and unauthenticated users
+        $user = $request->user();
+        $planType = $user?->tenant?->plan?->plan_type ?? 'free';
+        $userId = $user?->id;
 
-        $course = Course::with(['jlptLevel', 'publishedLessons'])
-            ->where('is_published', true)
-            ->findOrFail($id);
+        // Accept both UUID and slug
+        $course = Course::findByIdOrSlug($id);
+
+        if (!$course) {
+            return response()->json([
+                'message' => 'Course not found',
+            ], 404);
+        }
+
+        // Only return published courses
+        if (!$course->is_published) {
+            return response()->json([
+                'message' => 'Course not found',
+            ], 404);
+        }
+
+        // Eager load relationships
+        $course->load(['jlptLevel', 'publishedLessons']);
 
         // Course level access check
         $courseRule = ContentAccessRule::where('content_type', 'course')
@@ -88,7 +110,7 @@ class CourseController extends Controller
 
         // Build lessons with individual lock status
         $lessons = $course->publishedLessons->map(function ($lesson, $index) use (
-            $planType, $courseAccess, $previewCount, $user
+            $planType, $courseAccess, $previewCount, $userId
         ) {
             // Check individual lesson rule
             $lessonRule   = ContentAccessRule::where('content_type', 'lesson')
@@ -104,10 +126,13 @@ class CourseController extends Controller
                 $lessonAccess = true;
             }
 
-            // Check if completed
-            $completed = LessonCompletion::where('user_id', $user->id)
-                ->where('lesson_id', $lesson->id)
-                ->exists();
+            // Check if completed (only for authenticated users)
+            $completed = false;
+            if ($userId) {
+                $completed = LessonCompletion::where('user_id', $userId)
+                    ->where('lesson_id', $lesson->id)
+                    ->exists();
+            }
 
             return [
                 'id'                => $lesson->id,

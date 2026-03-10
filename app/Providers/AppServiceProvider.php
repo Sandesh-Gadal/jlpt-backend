@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\XpService;
+use App\Services\SrsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +17,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register services
+        $this->app->singleton(XpService::class, function ($app) {
+            return new XpService();
+        });
+        
+        $this->app->singleton(SrsService::class, function ($app) {
+            return new SrsService();
+        });
     }
 
     /**
