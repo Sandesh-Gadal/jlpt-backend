@@ -9,10 +9,18 @@ use App\Http\Controllers\Learner\LessonController;
 use App\Http\Controllers\FlashcardController;
 use App\Http\Controllers\TestController;
 use App\Http\Controllers\DashboardController;
+use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+
+
+
 
 // ── Public routes (no auth required) ──────────────────────
-Route::prefix('v1')->group(function () {
+Route::prefix('v1')
+->middleware([EnsureFrontendRequestsAreStateful::class])
+->group(function () {
 
+   
     // Auth
     Route::prefix('auth')->group(function () {
         Route::post('/register',         [AuthController::class, 'register']);
@@ -62,20 +70,20 @@ Route::prefix('v1')->group(function () {
         });
 
 
-        // Flashcards
-Route::get('/flashcards',             [FlashcardController::class, 'index']);
-Route::get('/flashcards/due',         [FlashcardController::class, 'due']);
-Route::post('/flashcards/{id}/rate',  [FlashcardController::class, 'rate']);
+                // Flashcards
+        Route::get('/flashcards',             [FlashcardController::class, 'index']);
+        Route::get('/flashcards/due',         [FlashcardController::class, 'due']);
+        Route::post('/flashcards/{id}/rate',  [FlashcardController::class, 'rate']);
 
-// Tests
-Route::get('/tests',                                   [TestController::class, 'index']);
-Route::post('/tests/{testSetId}/start',                [TestController::class, 'start']);
-Route::post('/tests/attempts/{attemptId}/answer',      [TestController::class, 'answer']);
-Route::post('/tests/attempts/{attemptId}/submit',      [TestController::class, 'submit']);
-Route::get('/tests/attempts/{attemptId}/results',      [TestController::class, 'results']);
+        // Tests
+        Route::get('/tests',                                   [TestController::class, 'index']);
+        Route::post('/tests/{testSetId}/start',                [TestController::class, 'start']);
+        Route::post('/tests/attempts/{attemptId}/answer',      [TestController::class, 'answer']);
+        Route::post('/tests/attempts/{attemptId}/submit',      [TestController::class, 'submit']);
+        Route::get('/tests/attempts/{attemptId}/results',      [TestController::class, 'results']);
 
-// Dashboard (real data)
-Route::get('/dashboard',  [DashboardController::class, 'index']);
-    });
+        // Dashboard (real data)
+        Route::get('/dashboard',  [DashboardController::class, 'index']);
+            });
 
 });

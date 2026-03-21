@@ -10,6 +10,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Auth;
+
 
 class AuthController extends Controller
 {
@@ -52,47 +54,78 @@ class AuthController extends Controller
         $user->sendEmailVerificationNotification();
 
         // Create token
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Registration successful. Please verify your email.',
-            'token'   => $token,
+            // 'token'   => $token,
             'user'    => $this->userResponse($user),
         ], 201);
     }
 
     // ── POST /api/v1/auth/login ────────────────────────────
-    public function login(Request $request): JsonResponse
+    // public function login(Request $request): JsonResponse
+    // {
+    //     $data = $request->validate([
+    //         'email'    => 'required|email',
+    //         'password' => 'required|string',
+    //     ]);
+
+    //     $user = User::where('email', $data['email'])->first();
+
+    //     if (!$user || !Hash::check($data['password'], $user->password_hash)) {
+    //         return response()->json([
+    //             'message' => 'Invalid email or password.',
+    //         ], 401);
+    //     }
+
+    //     if (!$user->is_active) {
+    //         return response()->json([
+    //             'message' => 'Your account has been suspended.',
+    //         ], 403);
+    //     }
+
+    //     // Update last login
+    //     $user->update(['last_login_at' => now()]);
+
+    //     // Revoke old tokens and create new one
+    //     // $user->tokens()->delete();
+    //     // $token = $user->createToken('auth_token')->plainTextToken;
+
+
+    //     return response()->json([
+    //         'message' => 'Login successful.',
+    //         // 'token'   => $token,
+    //         'user'    => $this->userResponse($user),
+    //     ]);
+    // }
+
+        public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
             'email'    => 'required|email',
             'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $data['email'])->first();
-
-        if (!$user || !Hash::check($data['password'], $user->password_hash)) {
+        if (!Auth::attempt($data)) {
             return response()->json([
                 'message' => 'Invalid email or password.',
             ], 401);
         }
 
+        $request->session()->regenerate();
+
+        $user = Auth::user();
+
         if (!$user->is_active) {
+            Auth::logout();
             return response()->json([
                 'message' => 'Your account has been suspended.',
             ], 403);
         }
 
-        // Update last login
-        $user->update(['last_login_at' => now()]);
-
-        // Revoke old tokens and create new one
-        $user->tokens()->delete();
-        $token = $user->createToken('auth_token')->plainTextToken;
-
         return response()->json([
-            'message' => 'Login successful.',
-            'token'   => $token,
+            'message' => 'Login successful',
             'user'    => $this->userResponse($user),
         ]);
     }
@@ -100,7 +133,11 @@ class AuthController extends Controller
     // ── POST /api/v1/auth/logout ───────────────────────────
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        // $request->user()->currentAccessToken()->delete();
+            Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json([
             'message' => 'Logged out successfully.',

@@ -1,11 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 
-// Route::get('/', function () {
-//     return response()->json([
-//         'message' => 'JLPT Master API',
-//         'version' => 'v1',
-//         'status'  => 'running',
-//     ]);
-// });
+
+Route::get('/sanctum/csrf-cookie', [CsrfCookieController::class, 'show'])
+    ->middleware('web');
