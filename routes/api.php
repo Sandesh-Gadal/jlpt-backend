@@ -11,16 +11,21 @@ use App\Http\Controllers\TestController;
 use App\Http\Controllers\DashboardController;
 use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+use Illuminate\Session\Middleware\StartSession;
 
 
 
 
 // ── Public routes (no auth required) ──────────────────────
 Route::prefix('v1')
-->middleware([EnsureFrontendRequestsAreStateful::class])
+// ->middleware([EnsureFrontendRequestsAreStateful::class])
 ->group(function () {
 
-   
+   Route::post('/postman-login', [AuthController::class, 'login'])
+   ->middleware([
+        EnsureFrontendRequestsAreStateful::class,
+        StartSession::class,
+    ]);
     // Auth
     Route::prefix('auth')->group(function () {
         Route::post('/register',         [AuthController::class, 'register']);
@@ -46,7 +51,7 @@ Route::prefix('v1')
             Route::post('/logout',              [AuthController::class, 'logout']);
             Route::get('/me',                   [AuthController::class, 'me']);
             Route::post('/resend-verification', [EmailVerificationController::class, 'resend']);
-            
+
         });
 
         // ── Learner routes ─────────────────────────────────────

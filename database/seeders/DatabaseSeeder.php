@@ -23,9 +23,8 @@ class DatabaseSeeder extends Seeder
             JlptLevelSeeder::class,
             CourseSeeder::class,
             LessonSeeder::class,
-            QuestionBankSeeder::class,
             ContentAccessRuleSeeder::class,
-            QuestionSeeder::class,
+             TestSeeder::class,
         ]);
 
           // Re-enable foreign key checks

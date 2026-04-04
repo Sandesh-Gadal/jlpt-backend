@@ -19,9 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         'feature' => \App\Http\Middleware\CheckFeatureGate::class,
     ]);
 
-    $middleware->api(prepend: [
-        EnsureFrontendRequestsAreStateful::class,
-    ]);
+   
+    $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

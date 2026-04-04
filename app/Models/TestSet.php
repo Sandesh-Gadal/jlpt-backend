@@ -18,6 +18,7 @@ class TestSet extends Model
     protected $fillable = [
         'jlpt_level_id',
         'title',
+        'description',
         'test_type',
         'time_limit_seconds',
         'passing_score_percent',
