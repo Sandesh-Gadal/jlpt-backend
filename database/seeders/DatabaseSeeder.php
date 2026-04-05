@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             JlptLevelSeeder::class,
             CourseSeeder::class,
+            VocabularyLessonSeeder::class,
             LessonSeeder::class,
             ContentAccessRuleSeeder::class,
              TestSeeder::class,

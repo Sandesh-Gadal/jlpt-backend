@@ -18,10 +18,11 @@ class CourseSeeder extends Seeder
 
         $n5Id = DB::table('jlpt_levels')->where('code', 'N5')->value('id');
         $n4Id = DB::table('jlpt_levels')->where('code', 'N4')->value('id');
+        $n3Id = DB::table('jlpt_levels')->where('code', 'N3')->value('id');
+        $n2Id = DB::table('jlpt_levels')->where('code', 'N2')->value('id');
+        $n1Id = DB::table('jlpt_levels')->where('code', 'N1')->value('id');
 
         $courses = [
-
-            // ── N5 COURSES — Free plan can access ─────────
             [
                 'id'                => Str::uuid(),
                 'jlpt_level_id'     => $n5Id,
@@ -65,7 +66,6 @@ class CourseSeeder extends Seeder
                 'updated_at'        => now(),
             ],
 
-            // ── N4 COURSES — Individual plan required ──────
             [
                 'id'                => Str::uuid(),
                 'jlpt_level_id'     => $n4Id,
@@ -94,9 +94,53 @@ class CourseSeeder extends Seeder
                 'created_at'        => now(),
                 'updated_at'        => now(),
             ],
+
+            [
+                'id'                => Str::uuid(),
+                'jlpt_level_id'     => $n3Id,
+                'title'             => 'N3 Vocabulary',
+                'slug'              => 'n3-vocabulary',
+                'description'       => 'Build strong intermediate vocabulary for JLPT N3.',
+                'category'          => 'vocabulary',
+                'estimated_minutes' => 300,
+                'sort_order'        => 6,
+                'is_published'      => true,
+                'thumbnail_url'     => null,
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ],
+            [
+                'id'                => Str::uuid(),
+                'jlpt_level_id'     => $n2Id,
+                'title'             => 'N2 Vocabulary',
+                'slug'              => 'n2-vocabulary',
+                'description'       => 'Learn advanced vocabulary for JLPT N2.',
+                'category'          => 'vocabulary',
+                'estimated_minutes' => 360,
+                'sort_order'        => 7,
+                'is_published'      => true,
+                'thumbnail_url'     => null,
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ],
+            [
+                'id'                => Str::uuid(),
+                'jlpt_level_id'     => $n1Id,
+                'title'             => 'N1 Vocabulary',
+                'slug'              => 'n1-vocabulary',
+                'description'       => 'Master high-level vocabulary required for JLPT N1.',
+                'category'          => 'vocabulary',
+                'estimated_minutes' => 420,
+                'sort_order'        => 8,
+                'is_published'      => true,
+                'thumbnail_url'     => null,
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ],
         ];
 
         DB::table('courses')->insert($courses);
-        $this->command->info('✅ Courses seeded — 3 N5 (free) + 2 N4 (individual) courses created.');
+
+        $this->command->info('✅ Courses seeded successfully.');
     }
 }
