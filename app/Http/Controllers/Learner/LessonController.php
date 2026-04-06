@@ -50,6 +50,7 @@ public function show(Request $request, string $id): JsonResponse
             'estimated_minutes' => $lesson->estimated_minutes,
             'xp_reward'         => $lesson->xp_reward,
             'video_url'         => $lesson->video_url,
+            'sort_order' => $lesson->sort_order,
             'audio_url'         => $lesson->audio_url,
             'course'            => [
                 'id'    => $lesson->course->id,
